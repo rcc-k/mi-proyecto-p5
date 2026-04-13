@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorpresa Animada</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #05050a; /* Fondo oscuro para resaltar la animación */
+            overflow: hidden; /* Evita barras de desplazamiento */
+        }
+        canvas {
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* Sombra suave para el lienzo */
+            border-radius: 8px; /* Bordes ligeramente redondeados */
+        }
+    </style>
+</head>
+<body>
+
+    <script>
+        let estrellas = [];
+        let jardinFondo = [];
+        let jardinMedio = [];
+        let jardinFrente = [];
+        let corazonesFondo = []; 
+        let alturaSuelo;
+        let colorCielo;
+
+        // Variables de estado (1: Escena, 2: Texto 1, 3: Gráficos, 4: Remolinos, 5: Perrito)
+        let estadoPagina = 1; 
+
+        // Variables para la página 4 (Remolinos)
+        let anguloRemolino = 0;
+        let corazonesRemolinos = []; 
+        let configuracionRemolinos = []; 
+
+        // Variables para la página 5 (Perrito)
+        let besitosPerrito = [];
+
+        function setup() {
+          createCanvas(600, 400);
+          pixelDensity(1);
+          
+          colorCielo = color(10, 20, 40); 
+          alturaSuelo = height * 0.8; 
+
+          // Generar Estrellas
+          for (let i = 0; i < 1500; i++) {
+            let tipoColor = random(1);
+            let col = tipoColor < 0.6 ? color(255) : (tipoColor < 0.8 ? color(220, 230, 255) : color(255, 250, 220));
+            estrellas.push({
+              x: random(width),
+              y: random(alturaSuelo), 
+              tamañoBase: random(0.2, 1.8),
+              brilloBase: random(100, 230),
+              faseParpadeo: random(TWO_PI),
+              velocidadParpadeo: random(0.02, 0.08),
+              color: col
+            });
+          }
+
+          // Generar Corazones para la página 3
+          for (let i = 0; i < 20; i++) {
+            corazonesFondo.push({
+              x: random(width),
+              y: random(height),
+              tam: random(15, 30), // Ligeramente más grandes para apreciar el realismo
+              vel: random(0.005, 0.02),
+              fase: random(TWO_PI)
+            });
+          }
+
+          // Generar Jardín
+          let inicioFlores = width * 0.25;
+          for (let x = inicioFlores; x < width; x += 10) {
+            jardinFondo.push(crearFlorRealista(x + random(-5,5), alturaSuelo + random(2, 15), 0.5, 80));
+            if (x % 20 === 0) jardinMedio.push(crearFlorRealista(x + random(-10,10), alturaSuelo + random(10, 25), 0.9, 150));
+            if (x % 80 === 0) jardinFrente.push(crearFlorRealista(x + random(-30,30), alturaSuelo + random(25, 45), 1.4, 255));
+          }
+
+          // Configurar Remolinos
+          configuracionRemolinos = [
+            { x: 60, y: 70, rMax: 70, txtSize: 15 },    
+            { x: width - 60, y: 70, rMax: 70, txtSize: 15 }, 
+            { x: 60, y: height - 120, rMax: 70, txtSize: 15 }, 
+            { x: width - 60, y: height - 120, rMax: 70, txtSize: 15 }, 
+            { x: width / 2, y: height / 2, rMax: 160, txtSize: 40 } 
+          ];
+          
+          generarCorazonesParaRemolinos();
+        }
+
+        function draw() {
+          background(10, 10, 20); // Fondo general
+
+          if (estadoPagina === 1) {
+            dibujarEscenaPrincipal();
+          } else if (estadoPagina === 2) {
+            dibujarEspacioParaTexto();
+          } else if (estadoPagina === 3) {
+            dibujarNuevaPaginaGrafica();
+          } else if (estadoPagina === 4) {
+            dibujarPaginaRemolinos();
+          } else if (estadoPagina === 5) {
+            dibujarPaginaPerrito();
+          }
+        }
+
+        // ==========================================
+        // PÁGINA 5: CACHORRO GOLDEN DE FRENTE CON PATAS IGUALES
+        // ==========================================
+
+        function dibujarPaginaPerrito() {
+          // Fondo suave con degradado cálido sutil
+          for(let y = 0; y < height; y++) {
+            stroke(lerpColor(color(20, 15, 30), color(40, 30, 60), y/height));
+            line(0, y, width, y);
+          }
+
+          // Dibujar Estrellas suaves
+          noStroke();
+          fill(255, 70);
+          for (let i = 0; i < 60; i++) {
+            circle(estrellas[i].x, estrellas[i].y, estrellas[i].tamañoBase);
+          }
+
+          // Posición central del perrito
+          let dogX = width / 2;
+          let dogY = height * 0.68;
+
+          // Actualizar y dibujar besitos (corazones animados)
+          actualizarBesitosPerrito();
+          
+          // Generar un besito desde el hocico (simulando que sale del hocico)
+          if (frameCount % 40 === 0) {
+            besitosPerrito.push({
+              x: dogX, // Sale del centro
+              y: dogY - 40, // A la altura del hocico
+              velY: random(-1.5, -3),
+              velX: random(-1, 1), 
+              tam: random(10, 16),
+              alfa: 255
+            });
+          }
+
+          // Dibujar al Cachorro Golden Retriever DE FRENTE con PATAS IGUALES
+          dibujarGoldenCuquiLanzandoBeso(dogX, dogY);
+
+          // TEXTO FINAL
+          textAlign(CENTER);
+          textFont('Georgia');
+          
+          // Título dulce
+          textSize(24);
+          fill(255, 230);
+          text("Un besito de mi parte...", width/2, height * 0.12);
+
+          // Frase principal solicitada
+          textSize(30);
+          fill(255);
+          text("Ahora lee la carta cariño 😘", width/2, height * 0.9);
+        }
+
+        function actualizarBesitosPerrito() {
+          for (let i = besitosPerrito.length - 1; i >= 0; i--) {
+            let b = besitosPerrito[i];
+            b.y += b.velY;
+            b.x += b.velX;
+            b.alfa -= 2.5; // Desvanecer
+            b.tam += 0.03; 
+
+            if (b.alfa <= 0) {
+              besitosPerrito.splice(i, 1); 
+            } else {
+              // Usar la nueva función de corazón realista para los besitos
+              dibujarCorazonVastoRealista(b.x, b.y, b.tam, b.alfa);
+            }
+          }
+        }
+
+        // ==========================================
+        // NUEVO DIBUJO: CACHORRO GOLDEN DE FRENTE CON PATAS IGUALES
+        // ==========================================
+        function dibujarGoldenCuquiLanzandoBeso(x, y) {
+          push();
+          translate(x, y);
+          noStroke();
+          
+          // Paleta Golden Retriever Super Cuqui
+          let colPeloMiel = color(245, 200, 100);
+          let colPeloClaro = color(255, 230, 150); // Morro y pecho
+          let colPeloSombra = color(220, 170, 70); // Orejas
+          let colNariz = color(40, 30, 30);
+          let colOjo = color(20, 15, 10);
+          let colRosa = color(255, 150, 170, 90); // Mejillas
+
+          // --- CORAZONCITO REALISTA ENCIMA DE LA CABEZA ---
+          // Usar la nueva función de corazón realista
+          dibujarCorazonVastoRealista(0, -115, 20, 255); 
+
+          // --- OREJAS CAÍDAS (Simétricas al fondo) ---
+          fill(colPeloSombra);
+          // Oreja Izquierda
+          push();
+          translate(-38, -50);
+          rotate(radians(15));
+          ellipse(0, 0, 30, 75);
+          pop();
+          // Oreja Derecha
+          push();
+          translate(38, -50);
+          rotate(radians(-15));
+          ellipse(0, 0, 30, 75);
+          pop();
+
+          // --- CUERPO SENTADO (De frente) ---
+          fill(colPeloMiel);
+          ellipse(0, 20, 80, 90); // Cuerpo principal
+          fill(colPeloClaro);
+          ellipse(0, 25, 50, 70); // Pecho/barriga clara central
+
+          // --- CABEZA CUQUI (De frente) ---
+          fill(colPeloMiel);
+          ellipse(0, -50, 90, 80); // Forma cabeza redondeada
+
+          // Hocico/Morro (Central y claro)
+          fill(colPeloClaro);
+          ellipse(0, -35, 45, 40);
+          
+          // Narizita Cuqui (Corazón invertido pequeño central)
+          fill(colNariz);
+          ellipse(0, -40, 16, 12);
+
+          // Ojos Cuquis Grandes (Simétricos)
+          fill(255); // Blanco
+          ellipse(-22, -55, 24, 28); // Ojo Izq
+          ellipse(22, -55, 24, 28);  // Ojo Der
+          
+          fill(colOjo); // Pupilas
+          ellipse(-20, -55, 18, 22);
+          ellipse(20, -55, 18, 22);
+          
+          fill(255); // Brillos principales grandes
+          circle(-17, -60, 9);
+          circle(23, -60, 9);
+          circle(-22, -50, 4); // Brillos secundarios
+          circle(18, -50, 4);
+
+          // Mejillas rosadas suaves
+          fill(colRosa);
+          ellipse(-30, -30, 20, 15);
+          ellipse(30, -30, 20, 15);
+
+          // Boca/Sonrisa suave
+          stroke(colNariz);
+          strokeWeight(2);
+          noFill();
+          arc(-8, -30, 16, 10, radians(0), radians(150));
+          arc(8, -30, 16, 10, radians(30), radians(180));
+          noStroke();
+
+          // --- PATAS DELANTERAS (AMBAS IGUALES Y APOYADAS) ---
+          function dibujarPataApoyada(offsetX) {
+            push();
+            translate(offsetX, 50);
+            fill(colPeloMiel);
+            ellipse(0, 0, 20, 50); // Antebrazo
+            fill(colPeloClaro);
+            ellipse(0, 18, 14, 24); // Almohadilla central
+            // Dedos
+            ellipse(-4, 22, 6, 8);
+            ellipse(0, 24, 6, 8);
+            ellipse(4, 22, 6, 8);
+            // Garritas sutiles
+            fill(colNariz);
+            ellipse(-4, 28, 2, 4);
+            ellipse(0, 30, 2, 4);
+            ellipse(4, 28, 2, 4);
+            pop();
+          }
+
+          // Dibujar pata izquierda
+          dibujarPataApoyada(-25);
+          // Dibujar pata derecha (exactamente igual en offsetX simétrico)
+          dibujarPataApoyada(25);
+
+          pop();
+        }
+
+        // ==========================================
+        // LÓGICA DE RATÓN MODIFICADA
+        // ==========================================
+
+        function mousePressed() {
+          if (estadoPagina === 1) {
+            if (mouseX > 120 && mouseX < 460 && mouseY > 40 && mouseY < 120) {
+              estadoPagina = 2;
+            }
+          } else if (estadoPagina === 2) {
+            estadoPagina = 3;
+          } else if (estadoPagina === 3) {
+            estadoPagina = 4;
+          } else if (estadoPagina === 4) {
+            estadoPagina = 5; // De remolinos a Perrito
+            besitosPerrito = []; // Limpiar besitos al entrar
+          } else if (estadoPagina === 5) {
+            estadoPagina = 1; // De Perrito al inicio
+          }
+        }
+
+        // ==========================================
+        // RESTO DEL CÓDIGO (INALTERADO)
+        // ==========================================
+
+        // --- PÁGINA 1: ESCENA PRINCIPAL ---
+        function dibujarEscenaPrincipal() {
+          // Cielo y Estrellas
+          noStroke();
+          for (let y = 0; y < alturaSuelo; y++) {
+            stroke(lerpColor(colorCielo, color(20, 35, 70), y/alturaSuelo));
+            line(0, y, width, y);
+          }
+          noStroke();
+          for (let e of estrellas) {
+            let b = e.brilloBase + sin(frameCount * e.velocidadParpadeo + e.faseParpadeo) * 20;
+            fill(red(e.color), green(e.color), blue(e.color), b);
+            circle(e.x, e.y, e.tamañoBase);
+          }
+          dibujarLunaRealista();
+          dibujarConstelacionTeAmo();
+          dibujarSuelo();
+          dibujarParejaRealista2D();
+          push(); filter(BLUR, 1.2); for (let f of jardinFondo) { f.crecer(); f.dibujar(); } pop();
+          for (let f of jardinMedio) { f.crecer(); f.dibujar(); }
+          push(); filter(BLUR, 0.5); for (let f of jardinFrente) { f.crecer(); f.dibujar(); } pop();
+        }
+
+        // --- PÁGINA 2: TEXTO VERTICAL ---
+        function dibujarEspacioParaTexto() {
+          background(5, 5, 15); 
+          fill(255); textAlign(CENTER, CENTER); textFont('Georgia');
+          let parrafos = [
+            "Tu eres la persona mas maravillosa del mundo mundial.",
+            "Eres sin ninguna duda el amor de mi vida.",
+            " ",
+            "Amor, no sabes lo feliz que me haces siempre.",
+            "Mi lugar favorito siempre será a tu lado.",
+            "Odio cuando estoy lejos de ti, prefiero estar a tu lado."
+          ];
+          let interlineado = 40;
+          let inicioY = (height / 2) - ((parrafos.length - 1) * interlineado / 2);
+          for (let i = 0; i < parrafos.length; i++) {
+            textSize(22); text(parrafos[i], width / 2, inicioY + (i * interlineado));
+          }
+          textSize(12); fill(255, 100); text("(Seguir)", width/2, height - 30);
+        }
+
+        // --- PÁGINA 3: GRÁFICOS (Tirita y Pastillas) ---
+        function dibujarNuevaPaginaGrafica() {
+          background(10, 10, 25); 
+          for (let c of corazonesFondo) {
+            let oscilacionY = sin(frameCount * c.vel + c.fase) * 10;
+            // Usar la nueva función de corazón realista para el fondo
+            dibujarCorazonVastoRealista(c.x, c.y + oscilacionY, c.tam, 100); 
+          }
+          dibujarTirita(width * 0.3, height * 0.35);
+          dibujarEnvasePastillas(width * 0.7, height * 0.35);
+          fill(255); textFont('Verdana'); textSize(28); textAlign(LEFT, CENTER);
+          text("Eres mi", width * 0.28, height * 0.62);
+          textSize(32); textAlign(CENTER, CENTER);
+          push(); translate(width * 0.62, height * 0.70); rotate(radians(8)); text("Mejor", 0, 0); pop();
+          textSize(26); textAlign(CENTER, CENTER); text("Medicina, vitalaura", width * 0.5, height * 0.82);
+          textSize(12); textAlign(CENTER); fill(255, 150); text("(Seguir)", width/2, height - 20);
+        }
+
+        // --- PÁGINA 4: REMOLINOS (Actualizado texto superior) ---
+        function dibujarPaginaRemolinos() {
+          background(5, 5, 15); 
+          anguloRemolino += 0.02; 
+
+          // FRASE SUPERIOR
+          textAlign(CENTER);
+          textFont('Georgia');
+          textSize(24);
+          fill(255, 240);
+          text("Me da igual dar vueltas", width/2, 35);
+
+          for (let config of configuracionRemolinos) {
+            dibujarLineasYTextoRemolino(config.x, config.y, config.rMax, config.txtSize);
+          }
+
+          for (let cor of corazonesRemolinos) {
+            let a = anguloRemolino + cor.anguloFijo;
+            // Usar la nueva función de corazón realista para los remolinos
+            dibujarCorazonVastoRealista(cor.centroX + cos(a) * cor.radioD, cor.centroY + sin(a) * cor.radioD, cor.tam, 200);
+          }
+
+          // FRASES INFERIORES SEPARADAS
+          textFont('Verdana');
+          textSize(18);
+          fill(255, 210);
+          
+          push(); 
+          textAlign(LEFT); 
+          translate(width * 0.1, height - 60); 
+          rotate(radians(-2)); 
+          text("si donde voy", 0, 0); 
+          pop();
+
+          push(); 
+          textAlign(RIGHT); 
+          translate(width * 0.9, height - 40); 
+          rotate(radians(1)); 
+          text("vas a estar tú", 0, 0); 
+          pop();
+
+          textAlign(CENTER); textSize(11); fill(255, 80); text("(Seguir)", width/2, height - 15);
+        }
+
+        // --- FUNCIONES DE DIBUJO AUXILIARES ---
+        function dibujarLunaRealista() {
+          let lx = width * 0.85, ly = 60;
+          noStroke();
+          for(let i=15; i>0; i--) { fill(250, 248, 210, 20-i); circle(lx, ly, 45+i*3); }
+          fill(252, 250, 225); circle(lx, ly, 45);
+        }
+
+        function dibujarConstelacionTeAmo() {
+          stroke(255, 150); strokeWeight(0.9); noFill();
+          line(130,50,170,50); line(150,50,150,110); 
+          line(190,50,190,110); line(190,50,220,50); line(190,80,215,80); line(190,110,220,110); 
+          line(270,110,295,50); line(295,50,320,110); line(282,85,308,85); 
+          line(340,110,340,50); line(340,50,365,80); line(365,80,390,50); line(390,50,390,110); 
+          ellipse(430,80,50,60); 
+        }
+
+        function dibujarParejaRealista2D() {
+          let posX = width * 0.125; let posY = alturaSuelo + 15; 
+          noStroke();
+          fill(240); rect(posX - 22, posY - 70, 20, 42, 8); 
+          fill(120); rect(posX - 24, posY - 30, 24, 15, 8); 
+          push(); translate(posX - 6, posY - 75); rotate(radians(15)); fill(60, 35, 20); circle(0, 0, 18); rect(-9, 0, 18, 25, 10); pop();
+          fill(5); circle(posX + 12, posY - 85, 20); 
+          fill(80); rect(posX - 2, posY - 75, 28, 50, 10); 
+          fill(210, 190, 150); rect(posX + 1, posY - 30, 22, 15, 8); 
+          fill(255); textSize(10); textAlign(CENTER);
+          text("TÚ", posX - 12, posY - 95); text("YO", posX + 15, posY - 105);
+        }
+
+        function dibujarTirita(x, y) {
+          push(); translate(x, y); rotate(radians(-15)); noStroke();
+          fill(220, 180, 140); rectMode(CENTER); rect(0, 0, 120, 40, 20); 
+          fill(240, 220, 200); rect(0, 0, 40, 38, 5);
+          fill(180, 140, 100, 150); for(let i=-50; i<=50; i+=10) { if(abs(i)>20){circle(i,-10,2); circle(i,10,2);}} pop();
+        }
+
+        function dibujarEnvasePastillas(x, y) {
+          push(); translate(x, y); rotate(radians(10)); noStroke();
+          fill(200); rectMode(CENTER); rect(0, 0, 80, 130, 10); 
+          fill(220, 150); rect(-20, 0, 10, 110, 2);
+          for(let i=0; i<4; i++) { 
+            for(let j=0; j<2; j++) {
+              let pX=(j*38)-19; 
+              let pY=(i*30)-45; 
+              fill(255,40); 
+              ellipse(pX,pY,30,30); 
+              // Usar corazón realista en las pastillas, muy pequeño y completamente opaco
+              dibujarCorazonVastoRealista(pX,pY+2,10,255); 
+            }
+          } 
+          pop();
+        }
+
+        function dibujarLineasYTextoRemolino(cx, cy, r, ts) {
+          for (let i=0; i<4; i++) {
+            stroke(100, 100, 255, 100); strokeWeight(1.2); noFill();
+            let off = map(i, 0, 4, 0, TWO_PI);
+            beginShape();
+            for (let d=r; d>0; d-=2) {
+              let a = anguloRemolino + (r - d) * 0.03 + off;
+              vertex(cx + cos(a) * d, cy + sin(a) * d);
+            }
+            endShape();
+          }
+          noStroke(); fill(255); textAlign(CENTER, CENTER); textSize(ts); textFont('Georgia'); text("TÚ", cx, cy);
+        }
+
+        // --- FUNCIÓN DE DIBUJO DE CORAZÓN ULTRA-REALISTA CON VOLUMEN Y REFREJO (NUEVA) ---
+        // Esta función simula un renderizado 3D para un aspecto máximo de realismo con gomas
+        function dibujarCorazonVastoRealista(x, y, sz, alfa) {
+          push();
+          translate(x, y);
+          noStroke();
+          
+          // Colores base con más matices para el volumen
+          let colorBase = color(230, 0, 0, alfa);
+          let colorSombraInterna = color(100, 0, 0, alfa);
+          let colorBrilloSuave = color(255, 100, 100, alfa * 0.8);
+          let colorReflejoEspecular = color(255, 230, 230, alfa * 0.9);
+          
+          // 1. Sombra base para depth general (un poco desplazada)
+          fill(0, alfa * 0.25);
+          ellipse(-sz*0.3 + sz*0.06, -sz*0.3 + sz*0.06, sz*0.7, sz*0.7);
+          ellipse(sz*0.3 + sz*0.06, -sz*0.3 + sz*0.06, sz*0.7, sz*0.7);
+          beginShape();
+          vertex(-sz*0.6 + sz*0.06, -sz*0.1 + sz*0.06);
+          vertex(sz*0.6 + sz*0.06, -sz*0.1 + sz*0.06);
+          vertex(sz*0.06, sz*0.78 + sz*0.06);
+          endShape(CLOSE);
+
+          // 2. Base de volumen principal con degradado sutil
+          fill(colorBase);
+          // Lóbulos principales
+          ellipse(-sz*0.3, -sz*0.3, sz*0.65, sz*0.65);
+          ellipse(sz*0.3, -sz*0.3, sz*0.65, sz*0.65);
+          // Parte inferior cónica
+          beginShape();
+          vertex(-sz*0.62, -sz*0.1);
+          vertex(sz*0.62, -sz*0.1);
+          vertex(0, sz*0.78); 
+          endShape(CLOSE);
+
+          // 3. Sombra interna para definir los lóbulos superiores y hendidura
+          fill(colorSombraInterna);
+          ellipse(0, -sz*0.35, sz*0.4, sz*0.35); // Hendidura central sombra
+          
+          // 4. Brillo suave y difuso en la zona inferior para simular luz reflejada
+          fill(colorBrilloSuave);
+          ellipse(0, sz*0.1, sz*0.5, sz*0.4);
+
+          // 5. Reflejo especular nítido para aspecto vítreo/vasto
+          fill(colorReflejoEspecular);
+          // Ovalo de brillo principal superior derecho
+          push();
+          translate(sz*0.45, -sz*0.45);
+          rotate(radians(35));
+          ellipse(0, 0, sz*0.25, sz*0.45);
+          pop();
+          
+          // Pequeño punto de brillo secundario para complejidad
+          circle(-sz*0.2, sz*0.2, sz*0.1);
+
+          pop();
+        }
+
+        function dibujarSuelo() {
+          for (let y = alturaSuelo; y < height; y++) {
+            stroke(lerpColor(color(15, 25, 50), color(5, 10, 20), (y-alturaSuelo)/(height-alturaSuelo)));
+            line(0, y, width, y);
+          }
+        }
+
+        // ==========================================
+        // Clases de flores (MODIFICADAS CON PÉTALOS Y HOJAS)
+        // ==========================================
+
+        function crearFlorRealista(x, y, e, a) { 
+          return random(1) < 0.5 ? new TulipanRealista(x, y, e, a) : new RosaRealista(x, y, e, a); 
+        }
+
+        class FlorRealista {
+          constructor(x, y, e, a) { 
+            this.x = x; 
+            this.y = y; 
+            this.e = e; 
+            this.a = a; 
+            this.h = 0; 
+            this.hMax = random(40, 60) * e; 
+            this.faseHojas = random(TWO_PI);
+          }
+          
+          crecer() { 
+            if (this.h < this.hMax) this.h += 1; 
+          }
+
+          // Función auxiliar para dibujar un pétalo individual con degradado sutil
+          dibujarPetalo(px, py, w, h, angulo, col1, col2) {
+            push();
+            translate(px, py);
+            rotate(angulo);
+            noStroke();
+            
+            // Simular degradado con múltiples capas translúcidas
+            let pasos = 5;
+            for (let i = 0; i < pasos; i++) {
+              let inter = map(i, 0, pasos - 1, 0, 1);
+              let c = lerpColor(col1, col2, inter);
+              c.setAlpha(this.a * map(i, 0, pasos - 1, 1, 0.5)); // Transparencia variable
+              fill(c);
+              
+              // Escalar ligeramente cada capa hacia adentro
+              let escala = map(i, 0, pasos - 1, 1, 0.8);
+              ellipse(0, 0, w * escala, h * escala);
+            }
+            pop();
+          }
+
+          // Función auxiliar para dibujar una hoja individual con volumen
+          dibujarHoja(hx, hy, w, h, angulo, col1, col2) {
+            push();
+            translate(hx, hy);
+            rotate(angulo);
+            noStroke();
+
+            // Sombra base suave para depth
+            fill(0, this.a * 0.15);
+            ellipse(0, 0, w, h);
+
+            // Degradado simulado con capas
+            let pasos = 6;
+            for (let i = 0; i < pasos; i++) {
+              let inter = map(i, pasos - 1, 0, 0, 1); // Invierte para degradado interno
+              let c = lerpColor(col1, col2, inter);
+              c.setAlpha(this.a);
+              fill(c);
+
+              // Escalar y mover sutilmente para el efecto de volumen
+              let sw = w * map(i, pasos - 1, 0, 0.1, 1);
+              let sh = h * map(i, pasos - 1, 0, 0.1, 1);
+              let offsetX = map(i, pasos - 1, 0, -w * 0.15, 0); // Desplaza hacia el borde
+
+              ellipse(offsetX, 0, sw, sh);
+            }
+            
+            pop();
+          }
+        }
+
+        class TulipanRealista extends FlorRealista {
+          dibujar() {
+            // Tallo y Hojas del Tallo
+            let colTallo = color(34, 100, 34, this.a);
+            let colHojaLuz = color(60, 150, 60, this.a);
+            let colHojaSombra = color(20, 80, 20, this.a);
+
+            stroke(colTallo); 
+            strokeWeight(1.5 * this.e);
+            line(this.x, this.y, this.x, this.y - this.h);
+            
+            // Dibujar hojas a lo largo del tallo
+            if (this.h > this.hMax * 0.4) {
+              // Hojas grandes y alargadas en la base del tallo
+              push();
+              translate(this.x, this.y - this.h * 0.2);
+              this.dibujarHoja(0, 0, 25 * this.e, 6 * this.e, radians(-65 + sin(frameCount * 0.02 + this.faseHojas)*5), colHojaSombra, colHojaLuz);
+              pop();
+
+              push();
+              translate(this.x, this.y - this.h * 0.3);
+              this.dibujarHoja(0, 0, 25 * this.e, 6 * this.e, radians(65 + cos(frameCount * 0.02 + this.faseHojas)*5), colHojaSombra, colHojaLuz);
+              pop();
+            }
+            
+            if(this.h > this.hMax*0.9) {
+              push();
+              translate(this.x, this.y - this.h);
+              
+              // Colores para los pétalos
+              let colPuntal = color(255, 100, 100, this.a);
+              let colBase = color(150, 50, 50, this.a);
+              
+              // Pétalos superpuestos (copa del tulipán)
+              // Pétalo central trasero
+              this.dibujarPetalo(0, -2 * this.e, 10 * this.e, 18 * this.e, 0, colBase, colPuntal);
+              
+              // Pétalos laterales
+              this.dibujarPetalo(-3 * this.e, 0, 10 * this.e, 16 * this.e, radians(-15), colBase, colPuntal);
+              this.dibujarPetalo(3 * this.e, 0, 10 * this.e, 16 * this.e, radians(15), colBase, colPuntal);
+              
+              // Pétalo central delantero (cierra la copa)
+              this.dibujarPetalo(0, 2 * this.e, 11 * this.e, 15 * this.e, 0, colBase, colPuntal);
+              
+              pop();
+            }
+          }
+        }
+
+        class RosaRealista extends FlorRealista {
+          dibujar() {
+            // Tallo y Hojas del Tallo
+            let colTallo = color(20, 80, 20, this.a);
+            let colHojaLuz = color(50, 130, 50, this.a);
+            let colHojaSombra = color(15, 60, 15, this.a);
+
+            stroke(colTallo); 
+            strokeWeight(1.5 * this.e);
+            line(this.x, this.y, this.x, this.y - this.h);
+            
+            // Dibujar hojas alternas a lo largo del tallo
+            if (this.h > this.hMax * 0.5) {
+              push();
+              translate(this.x, this.y - this.h * 0.5);
+              this.dibujarHoja(0, 0, 18 * this.e, 5 * this.e, radians(-50 + sin(frameCount * 0.02 + this.faseHojas)*5), colHojaSombra, colHojaLuz);
+              pop();
+
+              push();
+              translate(this.x, this.y - this.h * 0.65);
+              this.dibujarHoja(0, 0, 15 * this.e, 4 * this.e, radians(50 + cos(frameCount * 0.02 + this.faseHojas)*5), colHojaSombra, colHojaLuz);
+              pop();
+            }
+            
+            if(this.h > this.hMax*0.9) {
+              push();
+              translate(this.x, this.y - this.h);
+              
+              // Colores para los pétalos
+              let colExterna = color(200, 0, 50, this.a);
+              let colInterna = color(255, 50, 100, this.a);
+              let colSombra = color(100, 0, 20, this.a);
+              
+              // Capas de pétalos concéntricos para la rosa
+              let numCapas = 3;
+              for (let c = numCapas; c > 0; c--) {
+                let radioCapa = map(c, 1, numCapas, 3, 7) * this.e;
+                let tamPetaloW = map(c, 1, numCapas, 5, 10) * this.e;
+                let tamPetaloH = map(c, 1, numCapas, 7, 12) * this.e;
+                let numPetalos = map(c, 1, numCapas, 5, 8);
+                
+                let colPetaloLuz = lerpColor(colInterna, colExterna, map(c, 1, numCapas, 0, 1));
+                let colPetaloSombra = lerpColor(colSombra, colExterna, map(c, 1, numCapas, 0, 0.5));
+
+                for (let i = 0; i < numPetalos; i++) {
+                  let angulo = map(i, 0, numPetalos, 0, TWO_PI) + (c * radians(15)); // Rotación por capa
+                  let px = cos(angulo) * radioCapa;
+                  let py = sin(angulo) * radioCapa;
+                  
+                  this.dibujarPetalo(px, py, tamPetaloW, tamPetaloH, angulo + PI/2, colPetaloSombra, colPetaloLuz);
+                }
+              }
+              
+              // Centro capullo
+              noStroke();
+              fill(150, 0, 30, this.a);
+              circle(0, 0, 5 * this.e);
+              pop();
+            }
+          }
+        }
+
+        function generarCorazonesParaRemolinos() {
+          corazonesRemolinos = [];
+          for (let config of configuracionRemolinos) {
+            for (let i = 0; i < 4; i++) {
+              let offset = map(i, 0, 4, 0, TWO_PI);
+              for (let j = 0; j < 3; j++) {
+                let d = random(20, config.rMax * 0.95); 
+                corazonesRemolinos.push({
+                  centroX: config.x, centroY: config.y, radioD: d,
+                  anguloFijo: (config.rMax - d) * 0.03 + offset,
+                  tam: random(8, 15) // Ligeramente más grandes para apreciar el realismo
+                });
+              }
+            }
+          }
+        }
+    </script>
+</body>
+</html>
